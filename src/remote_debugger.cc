@@ -286,7 +286,7 @@ void RemoteDebugger::init_superglobal_variables_xml_child_node(tinyxml2::XMLElem
         std::string key_str = std::string(ZSTR_VAL(key));
 
         // filter local variable
-        if (Z_TYPE_P(val) == IS_INDIRECT || key_str == "argc" || key_str == "argv") {
+        if (Z_TYPE_P(val) == IS_INDIRECT || key_str != "GLOBALS") {
             continue;
         }
 
@@ -790,6 +790,9 @@ int RemoteDebugger::parse_property_get_cmd() {
     }
 
     property = yasd::util::fetch_zval_by_fullname(fullname);
+    if (!property) {
+        yasd::util::printfln_info(yasd::Color::YASD_ECHO_GREEN, "not found variable $%s", fullname.c_str());
+    }
 
     child = root->InsertNewChildElement("property");
 

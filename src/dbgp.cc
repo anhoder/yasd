@@ -201,6 +201,11 @@ void Dbgp::get_zend_array_child_property_doc(tinyxml2::XMLElement *child, const 
                     }
                 } else {  // string key
                     child_name = ZSTR_VAL(key);
+//                    auto name = std::string(ZSTR_VAL(key), ZSTR_LEN(key));
+//                    printf("child_name s: %s\n", name.c_str());
+//                    std::replace(name.begin(), name.end(), '\0', '^');
+//                    printf("child_name e: %s\n", name.c_str());
+//                    slashe_child_name = yasd::util::string::addslashes(name);
                     slashe_child_name = yasd::util::string::addslashes(std::string(ZSTR_VAL(key), ZSTR_LEN(key)));
 
                     if (property_element.fullname != "") {  // eval don't need fullname in phpstorm
@@ -258,7 +263,9 @@ void Dbgp::get_zend_object_child_property_doc(tinyxml2::XMLElement *child, const
                 std::string child_fullname;
                 std::string child_name;
 
-                child_name = yasd::util::get_property_name(key);
+                // printf("child_name start: %s\n", key->val);
+                child_name = yasd::util::wrap_property_name(class_name, key);
+                // printf("child_name end: %s\n", child_name.c_str());
                 if (property_element.fullname != "") {  // eval don't need fullname in phpstorm
                     child_fullname = property_element.fullname + "->" + child_name;
                 }

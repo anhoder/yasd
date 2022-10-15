@@ -77,6 +77,9 @@ namespace option {
   // get the property name of a common property, including public, protected, private
   std::string get_property_name(zend_string *property_name);
 
+  std::string wrap_property_name(zend_string *origin_cur_class_name, zend_string *origin_property_name);
+  std::string unwrap_property_name(zend_string *origin_property_name);
+
   zval *fetch_zval_by_fullname(std::string fullname);
 } // namespace util
 }  // namespace yasd

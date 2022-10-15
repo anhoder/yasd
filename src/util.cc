@@ -360,6 +360,54 @@ zend_array *get_properties(zval *zobj) {
     return nullptr;
 }
 
+std::string wrap_property_name(zend_string *origin_cur_class_name, zend_string *origin_property_name) {
+    const char *_class_name, *_property_name;
+    size_t _property_name_len;
+
+    zend_unmangle_property_name_ex(origin_property_name, &_class_name, &_property_name, &_property_name_len);
+
+    std::string property_name = std::string(_property_name, _property_name_len);
+    std::string cur_class_name = std::string(origin_cur_class_name->val, origin_cur_class_name->len);
+    std::string class_name;
+    if (_class_name) {
+        class_name = std::string(_class_name, strlen(_class_name));
+    }
+
+    if (!_class_name || class_name == "*") {
+        if (property_name.substr(0, 3) == std::string("\0*\0", 3)) {
+            property_name = property_name.substr(3, property_name.length() - 3);
+        }
+        if (class_name == "*") {
+            property_name = "*" + property_name;
+        }
+        return property_name;
+    }
+
+    return class_name + "*" + property_name;
+}
+
+std::string unwrap_property_name(std::string origin_property_name) {
+    auto pos = origin_property_name.find('*');
+    printf("pos: %ld\n", pos);
+    if (pos == std::string::npos || pos == origin_property_name.length()) {
+        return origin_property_name;
+    }
+
+    auto class_name = origin_property_name.substr(0, pos);
+    auto property_name = origin_property_name.substr(pos+1);
+
+    printf("class: %s, property: %s\n", class_name.c_str(), property_name.c_str());
+
+    if (class_name.empty()) {
+        return std::string("\0*\0", 3) + property_name;
+    }
+    auto property = zend_mangle_property_name(class_name.c_str(), class_name.length(), property_name.c_str(), property_name.length(), 0);
+    auto res = std::string(property->val, property->len);
+    zend_string_release(property);
+
+    return res;
+}
+
 std::string get_property_name(zend_string *property_name) {
     const char *class_name, *_property_name;
     size_t _property_name_len;
@@ -406,7 +454,13 @@ zval *fetch_zval_by_fullname(std::string fullname) {
             next_zval_info->retval_ptr = &global->globals;
             return;
         } else if (next_zval_info->retval_ptr) {
-            next_zval_info->symbol_table = Z_ARRVAL_P(next_zval_info->retval_ptr);
+            if (Z_TYPE_P(next_zval_info->retval_ptr) == IS_OBJECT) {
+                next_zval_info->symbol_table = get_properties(next_zval_info->retval_ptr);
+                convert_to_array(next_zval_info->retval_ptr);
+                php_var_dump(next_zval_info->retval_ptr, 0);
+            } else {
+                next_zval_info->symbol_table = Z_ARRVAL_P(next_zval_info->retval_ptr);
+            }
         }
 
         if (!next_zval_info->retval_ptr) {
@@ -416,7 +470,8 @@ zval *fetch_zval_by_fullname(std::string fullname) {
                 next_zval_info->retval_ptr =
                     variable::find_variable(next_zval_info->symbol_table, strtoull(name.c_str(), NULL, 10));
             } else {
-                name = yasd::util::string::stripslashes(name);
+                // name = yasd::util::string::stripslashes(name);
+                name = unwrap_property_name(name);
                 next_zval_info->retval_ptr = variable::find_variable(next_zval_info->symbol_table, name);
             }
         } else {
